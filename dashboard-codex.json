@@ -1,0 +1,253 @@
+{
+  "dashboard": {
+    "uid": "codex-productivity",
+    "title": "Codex Productivity",
+    "tags": ["codex", "productivity"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 0,
+    "refresh": "30s",
+    "time": { "from": "now-7d", "to": "now" },
+    "templating": {
+      "list": [
+        {
+          "name": "user", "label": "User", "type": "query",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "query": { "query": "label_values(codex_api_request_count_total, user_email)", "refId": "A" },
+          "includeAll": true, "multi": true,
+          "current": { "text": "All", "value": "$__all" }, "refresh": 2
+        },
+        {
+          "name": "model", "label": "Model", "type": "query",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "query": { "query": "label_values(codex_turn_token_usage_tokens_total, model)", "refId": "B" },
+          "includeAll": true, "multi": true,
+          "current": { "text": "All", "value": "$__all" }, "refresh": 2
+        }
+      ]
+    },
+    "panels": [
+
+      {
+        "id": 1, "title": "APIリクエスト数", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 0, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#10A37F" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_api_request_count_total{user_email=~\"$user\"})", "instant": true }]
+      },
+      {
+        "id": 2, "title": "総トークン", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 4, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#10A37F" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_turn_token_usage_tokens_total{user_email=~\"$user\",model=~\"$model\"})", "instant": true }]
+      },
+      {
+        "id": 3, "title": "ツール実行数 (成功)", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 8, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#10A37F" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_tool_call_count_total{success=\"true\",user_email=~\"$user\"})", "instant": true }]
+      },
+      {
+        "id": 4, "title": "ツール失敗数", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 12, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short", "noValue": "0",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 15 }
+          ]},
+          "color": { "mode": "thresholds" }
+        }},
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_tool_call_count_total{success=\"false\",user_email=~\"$user\"}) or vector(0)", "instant": true }]
+      },
+      {
+        "id": 5, "title": "ツール成功率", "type": "gauge",
+        "gridPos": { "h": 3, "w": 4, "x": 16, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "green", "value": 0.92 }
+          ]}
+        }},
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+        "targets": [{ "refId": "A",
+          "expr": "sum(codex_tool_call_count_total{success=\"true\",user_email=~\"$user\"}) / sum(codex_tool_call_count_total{user_email=~\"$user\"})",
+          "instant": true }]
+      },
+      {
+        "id": 6, "title": "累計処理時間 (ms)", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 20, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "fixed", "fixedColor": "#10A37F" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_turn_e2e_duration_ms_milliseconds_total{user_email=~\"$user\"})", "instant": true }]
+      },
+
+      {
+        "id": 10, "title": "🏆 APIリクエスト数ランキング", "type": "table",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 3 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": {
+          "defaults": { "unit": "short" },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "user_email" },
+              "properties": [{ "id": "displayName", "value": "ユーザー" }, { "id": "custom.width", "value": 180 }] },
+            { "matcher": { "id": "byName", "options": "Value" }, "properties": [
+              { "id": "displayName", "value": "APIリクエスト数" },
+              { "id": "custom.displayMode", "value": "lcd-gauge" },
+              { "id": "color", "value": { "fixedColor": "#10A37F", "mode": "fixed" } }
+            ]}
+          ]
+        },
+        "options": { "sortBy": [{ "displayName": "APIリクエスト数", "desc": true }] },
+        "transformations": [{ "id": "labelsToFields", "options": { "valueLabel": "user_email", "mode": "columns" } }],
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (codex_api_request_count_total{user_email=~\"$user\"})",
+          "instant": true, "legendFormat": "{{user_email}}" }]
+      },
+      {
+        "id": 11, "title": "🔧 ツール実行数ランキング", "type": "table",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 3 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": {
+          "defaults": { "unit": "short" },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "user_email" },
+              "properties": [{ "id": "displayName", "value": "ユーザー" }, { "id": "custom.width", "value": 180 }] },
+            { "matcher": { "id": "byName", "options": "Value" }, "properties": [
+              { "id": "displayName", "value": "ツール実行数" },
+              { "id": "custom.displayMode", "value": "lcd-gauge" },
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]}
+          ]
+        },
+        "options": { "sortBy": [{ "displayName": "ツール実行数", "desc": true }] },
+        "transformations": [{ "id": "labelsToFields", "options": { "valueLabel": "user_email", "mode": "columns" } }],
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (codex_tool_call_count_total{user_email=~\"$user\"})",
+          "instant": true, "legendFormat": "{{user_email}}" }]
+      },
+      {
+        "id": 12, "title": "⚠️ ツール失敗数ランキング", "type": "table",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 3 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": {
+          "defaults": { "unit": "short" },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "user_email" },
+              "properties": [{ "id": "displayName", "value": "ユーザー" }, { "id": "custom.width", "value": 180 }] },
+            { "matcher": { "id": "byName", "options": "Value" }, "properties": [
+              { "id": "displayName", "value": "失敗数" },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 10 }
+              ]}}
+            ]}
+          ]
+        },
+        "options": { "sortBy": [{ "displayName": "失敗数", "desc": true }] },
+        "transformations": [{ "id": "labelsToFields", "options": { "valueLabel": "user_email", "mode": "columns" } }],
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (codex_tool_call_count_total{success=\"false\",user_email=~\"$user\"}) or sum by (user_email) (codex_api_request_count_total{user_email=~\"$user\"}) * 0",
+          "instant": true, "legendFormat": "{{user_email}}" }]
+      },
+
+      {
+        "id": 20, "title": "ユーザー別 トークン比較 (input / output)", "type": "barchart",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 11 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": {
+          "defaults": { "unit": "short", "custom": { "stacking": { "mode": "normal" } } },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "input" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "#10A37F", "mode": "fixed" } }] },
+            { "matcher": { "id": "byName", "options": "output" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "#34d399", "mode": "fixed" } }] }
+          ]
+        },
+        "options": { "orientation": "horizontal", "stacking": "normal",
+          "legend": { "displayMode": "list", "placement": "bottom" } },
+        "targets": [
+          { "refId": "A",
+            "expr": "sum by (user_email) (codex_turn_token_usage_tokens_total{token_type=\"input\",user_email=~\"$user\",model=~\"$model\"})",
+            "legendFormat": "input", "instant": true },
+          { "refId": "B",
+            "expr": "sum by (user_email) (codex_turn_token_usage_tokens_total{token_type=\"output\",user_email=~\"$user\",model=~\"$model\"})",
+            "legendFormat": "output", "instant": true }
+        ]
+      },
+      {
+        "id": 21, "title": "ユーザー別 ツール成功率", "type": "barchart",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 11 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "92% 以上が目標。低いユーザーは権限エラーや不正なコマンドを繰り返している可能性。",
+        "fieldConfig": {
+          "defaults": { "unit": "percentunit", "min": 0, "max": 1,
+            "thresholds": { "mode": "absolute", "steps": [
+              { "color": "red", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "green", "value": 0.92 }
+            ]},
+            "custom": { "displayMode": "color-background" }
+          }
+        },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "hidden" } },
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (codex_tool_call_count_total{success=\"true\",user_email=~\"$user\"}) / sum by (user_email) (codex_tool_call_count_total{user_email=~\"$user\"})",
+          "legendFormat": "{{user_email}}", "instant": true }]
+      },
+
+      {
+        "id": 30, "title": "ツール別 使用回数 (ユーザー別積み上げ)", "type": "barchart",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "apply_patch（コード変更）が多いほど実際の編集作業に Codex を活かせている。",
+        "fieldConfig": {
+          "defaults": { "unit": "short", "color": { "mode": "palette-classic" },
+            "custom": { "stacking": { "mode": "normal" } } }
+        },
+        "options": { "orientation": "horizontal", "stacking": "normal",
+          "legend": { "displayMode": "list", "placement": "bottom" } },
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email, tool) (codex_tool_call_count_total{success=\"true\",user_email=~\"$user\"})",
+          "legendFormat": "{{tool}}", "instant": true }]
+      },
+      {
+        "id": 31, "title": "モデル別 トークン分布", "type": "piechart",
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 19 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "o3/o4-mini と gpt-4o の比率。高コストモデルへの偏りを確認する。",
+        "options": { "pieType": "donut",
+          "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } },
+        "targets": [{ "refId": "A",
+          "expr": "sum by (model) (codex_turn_token_usage_tokens_total{user_email=~\"$user\"})",
+          "legendFormat": "{{model}}", "instant": true }]
+      },
+      {
+        "id": 32, "title": "処理時間ランキング (e2e ms)", "type": "barchart",
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 19 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "累計の end-to-end 処理時間。長いほど複雑なタスクを多く処理している。",
+        "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "continuous-GrYlRd" } } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "hidden" } },
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (codex_turn_e2e_duration_ms_milliseconds_total{user_email=~\"$user\"})",
+          "legendFormat": "{{user_email}}", "instant": true }]
+      },
+
+      {
+        "id": 40, "title": "イベントログ — Codex (Loki)", "type": "logs",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
+        "datasource": { "type": "loki", "uid": "loki" },
+        "description": "Codex が送信したイベントログ。codex.tool_result / codex.api_request など。",
+        "options": { "showTime": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true },
+        "targets": [{ "refId": "A", "expr": "{service_name=\"codex\"}" }]
+      }
+
+    ]
+  },
+  "overwrite": true
+}

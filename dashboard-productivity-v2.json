@@ -1,0 +1,1294 @@
+{
+  "dashboard": {
+    "uid": "claude-code-productivity-v2",
+    "title": "Claude Code Productivity v2",
+    "tags": [
+      "claude-code",
+      "productivity"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 0,
+    "refresh": "30s",
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "user",
+          "label": "User",
+          "type": "query",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "query": {
+            "query": "label_values(claude_code_session_count_total, user_email)",
+            "refId": "A"
+          },
+          "includeAll": true,
+          "multi": true,
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          },
+          "refresh": 2
+        },
+        {
+          "name": "model",
+          "label": "Model",
+          "type": "query",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "query": {
+            "query": "label_values(claude_code_token_usage_tokens_total, model)",
+            "refId": "B"
+          },
+          "includeAll": true,
+          "multi": true,
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          },
+          "refresh": 2
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 70,
+        "title": "👥 アクティブユーザー数 (DAU相当)",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "description": "テレメトリを送信しているユニークユーザー数。DAU の代替指標（日次集計は時間範囲を1dに変更）。",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "blue"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 3
+                },
+                {
+                  "color": "green",
+                  "value": 5
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "count(count by (user_email) (claude_code_session_count_total{user_email=~\"$user\"}))",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 71,
+        "title": "🔄 resume率 (会話継続率)",
+        "type": "gauge",
+        "gridPos": {
+          "h": 3,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "description": "全セッションのうち前の会話を引き継いだ割合。30%以上が健全。高いほど文脈を活かして使えている。",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.2
+                },
+                {
+                  "color": "green",
+                  "value": 0.3
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(claude_code_session_count_total{start_type=\"resume\",user_email=~\"$user\"}) / sum(claude_code_session_count_total{user_email=~\"$user\"})",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 72,
+        "title": "📊 モデル別コスト内訳",
+        "type": "piechart",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "description": "Opus/Sonnet/Haiku のコスト比率。Opus が 60% 超なら最適化余地あり（単純作業に Sonnet で十分）。",
+        "options": {
+          "pieType": "donut",
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": [
+              "value",
+              "percent"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (model) (claude_code_cost_usage_USD_total{user_email=~\"$user\"})",
+            "legendFormat": "{{model}}",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 73,
+        "title": "⚠️ APIエラー発生数",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "description": "api_error イベントの累計数。急増したらネットワーク障害またはレート制限を疑う。",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "noValue": "0",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "red",
+                  "value": 20
+                }
+              ]
+            },
+            "color": {
+              "mode": "thresholds"
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(count_over_time({service_name=\"claude-code\", event_name=\"api_error\"}[$__range])) or vector(0)"
+          }
+        ]
+      },
+      {
+        "id": 74,
+        "title": "🔄 resume率ランキング (会話継続率 by ユーザー)",
+        "type": "barchart",
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 0,
+          "y": 4
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "description": "ユーザー別の resume 率。高いほど会話の文脈を活かして連続作業できている。低いユーザーは fresh ばかり → セッション引き継ぎを促す。",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.2
+                },
+                {
+                  "color": "green",
+                  "value": 0.3
+                }
+              ]
+            },
+            "custom": {
+              "displayMode": "color-background"
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "xTickLabelRotation": 0,
+          "legend": {
+            "displayMode": "hidden"
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_session_count_total{start_type=\"resume\",user_email=~\"$user\"}) / sum by (user_email) (claude_code_session_count_total{user_email=~\"$user\"})",
+            "legendFormat": "{{user_email}}",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 75,
+        "title": "🧮 cacheRead率ランキング (キャッシュ活用率)",
+        "type": "barchart",
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 12,
+          "y": 4
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "description": "cacheRead / 総トークンの比率。高いほどプロンプトキャッシュが効いており低コスト・高速。70% 以上が目標。低いユーザーは毎回新規セッション or プロンプト先頭が毎回変わっている。",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.5
+                },
+                {
+                  "color": "green",
+                  "value": 0.7
+                }
+              ]
+            },
+            "custom": {
+              "displayMode": "color-background"
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "legend": {
+            "displayMode": "hidden"
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_token_usage_tokens_total{type=\"cacheRead\",user_email=~\"$user\"}) / sum by (user_email) (claude_code_token_usage_tokens_total{user_email=~\"$user\"})",
+            "legendFormat": "{{user_email}}",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "title": "セッション数",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 4,
+          "x": 0,
+          "y": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "blue"
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(claude_code_session_count_total{user_email=~\"$user\"})",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "アクティブ時間",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 4,
+          "x": 4,
+          "y": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "purple"
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(claude_code_active_time_seconds_total{user_email=~\"$user\"})",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "累計コスト (USD)",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 4,
+          "x": 8,
+          "y": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 3,
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "green"
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(claude_code_cost_usage_USD_total{user_email=~\"$user\"})",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "LOC 追加",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 4,
+          "x": 12,
+          "y": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "green"
+            },
+            "noValue": "0"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(claude_code_lines_of_code_count_total{type=\"added\",user_email=~\"$user\"}) or vector(0)",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "git commit",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 4,
+          "x": 16,
+          "y": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "dark-green"
+            },
+            "noValue": "0"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(claude_code_commit_count_total{user_email=~\"$user\"}) or vector(0)",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "PR 数",
+        "type": "stat",
+        "gridPos": {
+          "h": 3,
+          "w": 4,
+          "x": 20,
+          "y": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "dark-purple"
+            },
+            "noValue": "0"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum(claude_code_pull_request_count_total{user_email=~\"$user\"}) or vector(0)",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "🏆 コストランキング (累計 USD)",
+        "type": "table",
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 10
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 3
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_email"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "ユーザー"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 180
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "コスト"
+                },
+                {
+                  "id": "custom.displayMode",
+                  "value": "color-background"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 1
+                      },
+                      {
+                        "color": "red",
+                        "value": 3
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "コスト",
+              "desc": true
+            }
+          ],
+          "footer": {
+            "show": true,
+            "reducer": [
+              "sum"
+            ],
+            "fields": "Value"
+          }
+        },
+        "transformations": [
+          {
+            "id": "labelsToFields",
+            "options": {
+              "valueLabel": "user_email",
+              "mode": "columns"
+            }
+          },
+          {
+            "id": "sortBy",
+            "options": {
+              "fields": [
+                {
+                  "displayName": "Value",
+                  "desc": true
+                }
+              ]
+            }
+          }
+        ],
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_cost_usage_USD_total{user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "{{user_email}}"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "📝 LOCランキング (追加行数)",
+        "type": "table",
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 10
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_email"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "ユーザー"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 180
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "追加行数"
+                },
+                {
+                  "id": "custom.displayMode",
+                  "value": "lcd-gauge"
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "green"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "追加行数",
+              "desc": true
+            }
+          ]
+        },
+        "transformations": [
+          {
+            "id": "labelsToFields",
+            "options": {
+              "valueLabel": "user_email",
+              "mode": "columns"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_lines_of_code_count_total{type=\"added\",user_email=~\"$user\"}) or sum by (user_email) (claude_code_session_count_total{user_email=~\"$user\"}) * 0",
+            "instant": true,
+            "legendFormat": "{{user_email}}"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "🔁 セッション数ランキング",
+        "type": "table",
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 10
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_email"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "ユーザー"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 180
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "セッション数"
+                },
+                {
+                  "id": "custom.displayMode",
+                  "value": "lcd-gauge"
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "blue"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "セッション数",
+              "desc": true
+            }
+          ]
+        },
+        "transformations": [
+          {
+            "id": "labelsToFields",
+            "options": {
+              "valueLabel": "user_email",
+              "mode": "columns"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_session_count_total{user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "{{user_email}}"
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "ユーザー別コスト比較 (棒グラフ)",
+        "type": "barchart",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 18
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2,
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "xTickLabelRotation": 0,
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_cost_usage_USD_total{user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "{{user_email}}"
+          }
+        ]
+      },
+      {
+        "id": 21,
+        "title": "ユーザー別 LOC 構成 (added / removed)",
+        "type": "barchart",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 18
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "stacking": {
+                "mode": "normal"
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "added"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "green",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "removed"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "red",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "orientation": "horizontal",
+          "stacking": "normal"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_lines_of_code_count_total{type=\"added\",user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "added"
+          },
+          {
+            "refId": "B",
+            "expr": "sum by (user_email) (claude_code_lines_of_code_count_total{type=\"removed\",user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "removed"
+          }
+        ]
+      },
+      {
+        "id": 30,
+        "title": "ユーザー別 commit / PR 数",
+        "type": "barchart",
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 0,
+          "y": 26
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "commit"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "dark-green",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "PR"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "dark-purple",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "orientation": "horizontal"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_commit_count_total{user_email=~\"$user\"}) or sum by (user_email) (claude_code_session_count_total{user_email=~\"$user\"}) * 0",
+            "instant": true,
+            "legendFormat": "commit"
+          },
+          {
+            "refId": "B",
+            "expr": "sum by (user_email) (claude_code_pull_request_count_total{user_email=~\"$user\"}) or sum by (user_email) (claude_code_session_count_total{user_email=~\"$user\"}) * 0",
+            "instant": true,
+            "legendFormat": "PR"
+          }
+        ]
+      },
+      {
+        "id": 31,
+        "title": "コスト効率: LOC/USD (1ドルあたりの追加行数)",
+        "type": "barchart",
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 12,
+          "y": 26
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "continuous-GrYlRd"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 200
+                },
+                {
+                  "color": "green",
+                  "value": 500
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_lines_of_code_count_total{type=\"added\",user_email=~\"$user\"}) / sum by (user_email) (claude_code_cost_usage_USD_total{user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "{{user_email}}"
+          }
+        ]
+      },
+      {
+        "id": 40,
+        "title": "ユーザー別 ツール拒否率 (reject / total %)",
+        "type": "barchart",
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 0,
+          "y": 33
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.1
+                },
+                {
+                  "color": "red",
+                  "value": 0.25
+                }
+              ]
+            },
+            "custom": {
+              "displayMode": "color-background"
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_code_edit_tool_decision_total{decision=\"reject\",user_email=~\"$user\"}) / sum by (user_email) (claude_code_code_edit_tool_decision_total{user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "{{user_email}}"
+          }
+        ]
+      },
+      {
+        "id": 41,
+        "title": "ユーザー別 使用言語分布",
+        "type": "barchart",
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 12,
+          "y": 33
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "stacking": {
+                "mode": "normal"
+              }
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "stacking": "normal"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email, language) (claude_code_code_edit_tool_decision_total{decision=\"accept\",language!=\"\",user_email=~\"$user\"})",
+            "instant": true,
+            "legendFormat": "{{language}}"
+          }
+        ]
+      },
+      {
+        "id": 50,
+        "title": "コスト推移 (ユーザー別)",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 40
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 3,
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "lineWidth": 2
+            }
+          }
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "sum by (user_email) (claude_code_cost_usage_USD_total{user_email=~\"$user\"})",
+            "legendFormat": "{{user_email}}"
+          }
+        ]
+      },
+      {
+        "id": 60,
+        "title": "イベントログ (Loki)",
+        "type": "logs",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 48
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "options": {
+          "showTime": true,
+          "wrapLogMessage": false,
+          "sortOrder": "Descending",
+          "enableLogDetails": true
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "{service_name=\"claude-code\"}"
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+}

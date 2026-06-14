@@ -1,0 +1,344 @@
+{
+  "dashboard": {
+    "uid": "ai-tools-unified",
+    "title": "AI Coding Tools — Claude Code vs Codex 統合比較",
+    "tags": ["claude-code", "codex", "unified"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 0,
+    "refresh": "30s",
+    "time": { "from": "now-7d", "to": "now" },
+    "templating": {
+      "list": [
+        {
+          "name": "user", "label": "User", "type": "query",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "query": { "query": "label_values(claude_code_session_count_total, user_email)", "refId": "A" },
+          "includeAll": true, "multi": true,
+          "current": { "text": "All", "value": "$__all" }, "refresh": 2
+        }
+      ]
+    },
+    "panels": [
+
+      {
+        "id": 1, "title": "🟣 Claude Code — 累計コスト (USD)", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 0, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 3,
+          "color": { "mode": "fixed", "fixedColor": "#7B2FBE" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(claude_code_cost_usage_USD_total{user_email=~\"$user\"})", "instant": true }]
+      },
+      {
+        "id": 2, "title": "🟢 Codex — APIリクエスト数", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 4, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "#10A37F" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_api_request_count_total{user_email=~\"$user\"})", "instant": true }]
+      },
+      {
+        "id": 3, "title": "🟣 Claude Code — 総トークン", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 8, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "#7B2FBE" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(claude_code_token_usage_tokens_total{user_email=~\"$user\"})", "instant": true }]
+      },
+      {
+        "id": 4, "title": "🟢 Codex — 総トークン", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 12, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "#10A37F" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_turn_token_usage_tokens_total{user_email=~\"$user\"})", "instant": true }]
+      },
+      {
+        "id": 5, "title": "🟣 Claude Code — LOC追加", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 16, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short", "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "#7B2FBE" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(claude_code_lines_of_code_count_total{type=\"added\",user_email=~\"$user\"}) or vector(0)", "instant": true }]
+      },
+      {
+        "id": 6, "title": "🟢 Codex — ツール実行数", "type": "stat",
+        "gridPos": { "h": 3, "w": 4, "x": 20, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "#10A37F" } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+        "targets": [{ "refId": "A", "expr": "sum(codex_tool_call_count_total{user_email=~\"$user\"})", "instant": true }]
+      },
+
+      {
+        "id": 10,
+        "title": "ユーザー別 トークン比較 — 🟣 Claude Code vs 🟢 Codex",
+        "type": "barchart",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 3 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "同じユーザーが各ツールで消費したトークン総量の比較。どちらのツールをより活用しているか一目でわかる。",
+        "fieldConfig": {
+          "defaults": { "unit": "short" },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "Claude Code" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "#7B2FBE", "mode": "fixed" } }] },
+            { "matcher": { "id": "byName", "options": "Codex" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "#10A37F", "mode": "fixed" } }] }
+          ]
+        },
+        "options": { "orientation": "horizontal", "groupWidth": 0.7,
+          "legend": { "displayMode": "list", "placement": "bottom" } },
+        "targets": [
+          { "refId": "A",
+            "expr": "sum by (user_email) (claude_code_token_usage_tokens_total{user_email=~\"$user\"})",
+            "legendFormat": "Claude Code", "instant": true },
+          { "refId": "B",
+            "expr": "sum by (user_email) (codex_turn_token_usage_tokens_total{user_email=~\"$user\"})",
+            "legendFormat": "Codex", "instant": true }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "ユーザー別 ツール成功率 — 🟣 Claude Code vs 🟢 Codex",
+        "type": "barchart",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 3 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "ツール実行の成功率。Claude Code は code_edit_tool の accept率、Codex は tool.call の success率。低いユーザーは権限設定や操作方法に課題がある可能性。",
+        "fieldConfig": {
+          "defaults": { "unit": "percentunit", "min": 0, "max": 1 },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "Claude Code (accept率)" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "#7B2FBE", "mode": "fixed" } }] },
+            { "matcher": { "id": "byName", "options": "Codex (success率)" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "#10A37F", "mode": "fixed" } }] }
+          ]
+        },
+        "options": { "orientation": "horizontal",
+          "legend": { "displayMode": "list", "placement": "bottom" } },
+        "targets": [
+          { "refId": "A",
+            "expr": "sum by (user_email) (claude_code_code_edit_tool_decision_total{decision=\"accept\",user_email=~\"$user\"}) / sum by (user_email) (claude_code_code_edit_tool_decision_total{user_email=~\"$user\"})",
+            "legendFormat": "Claude Code (accept率)", "instant": true },
+          { "refId": "B",
+            "expr": "sum by (user_email) (codex_tool_call_count_total{success=\"true\",user_email=~\"$user\"}) / sum by (user_email) (codex_tool_call_count_total{user_email=~\"$user\"})",
+            "legendFormat": "Codex (success率)", "instant": true }
+        ]
+      },
+
+      {
+        "id": 20,
+        "title": "🟣 Claude Code — コストランキング (USD)",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": {
+          "defaults": { "unit": "currencyUSD", "decimals": 3 },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "user_email" },
+              "properties": [{ "id": "displayName", "value": "ユーザー" }, { "id": "custom.width", "value": 180 }] },
+            { "matcher": { "id": "byName", "options": "Value" },
+              "properties": [
+                { "id": "displayName", "value": "コスト (USD)" },
+                { "id": "custom.displayMode", "value": "color-background" },
+                { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                  { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 3 }
+                ]}}
+              ]}
+          ]
+        },
+        "options": { "sortBy": [{ "displayName": "コスト (USD)", "desc": true }] },
+        "transformations": [
+          { "id": "labelsToFields", "options": { "valueLabel": "user_email", "mode": "columns" } }
+        ],
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (claude_code_cost_usage_USD_total{user_email=~\"$user\"})",
+          "instant": true, "legendFormat": "{{user_email}}" }]
+      },
+      {
+        "id": 21,
+        "title": "🟢 Codex — APIリクエスト数ランキング",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": {
+          "defaults": { "unit": "short" },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "user_email" },
+              "properties": [{ "id": "displayName", "value": "ユーザー" }, { "id": "custom.width", "value": 180 }] },
+            { "matcher": { "id": "byName", "options": "Value" },
+              "properties": [
+                { "id": "displayName", "value": "APIリクエスト数" },
+                { "id": "custom.displayMode", "value": "lcd-gauge" },
+                { "id": "color", "value": { "fixedColor": "#10A37F", "mode": "fixed" } }
+              ]}
+          ]
+        },
+        "options": { "sortBy": [{ "displayName": "APIリクエスト数", "desc": true }] },
+        "transformations": [
+          { "id": "labelsToFields", "options": { "valueLabel": "user_email", "mode": "columns" } }
+        ],
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (codex_api_request_count_total{user_email=~\"$user\"})",
+          "instant": true, "legendFormat": "{{user_email}}" }]
+      },
+      {
+        "id": 22,
+        "title": "🏆 総合スコアランキング (正規化トークン合計)",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "Claude Code + Codex のトークン合計で「AI ツール総活用量」をランキング。どちらのツールでも活発なユーザーが上位に来る。",
+        "fieldConfig": {
+          "defaults": { "unit": "short" },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "user_email" },
+              "properties": [{ "id": "displayName", "value": "ユーザー" }, { "id": "custom.width", "value": 180 }] },
+            { "matcher": { "id": "byName", "options": "Value" },
+              "properties": [
+                { "id": "displayName", "value": "総トークン (両ツール計)" },
+                { "id": "custom.displayMode", "value": "color-background" },
+                { "id": "color", "value": { "mode": "continuous-BlPu" } }
+              ]}
+          ]
+        },
+        "options": { "sortBy": [{ "displayName": "総トークン (両ツール計)", "desc": true }] },
+        "transformations": [
+          { "id": "labelsToFields", "options": { "valueLabel": "user_email", "mode": "columns" } }
+        ],
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (claude_code_token_usage_tokens_total{user_email=~\"$user\"}) + sum by (user_email) (codex_turn_token_usage_tokens_total{user_email=~\"$user\"})",
+          "instant": true, "legendFormat": "{{user_email}}" }]
+      },
+
+      {
+        "id": 30,
+        "title": "🟢 Codex — ツール別使用回数 (shell / apply_patch / read_file)",
+        "type": "barchart",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "Codex が実行したツールの内訳。apply_patch（コード変更）が多いほど実際の編集作業に使われている。",
+        "fieldConfig": {
+          "defaults": { "unit": "short", "color": { "mode": "palette-classic" },
+            "custom": { "stacking": { "mode": "normal" } } }
+        },
+        "options": { "orientation": "horizontal", "stacking": "normal",
+          "legend": { "displayMode": "list", "placement": "bottom" } },
+        "targets": [
+          { "refId": "A",
+            "expr": "sum by (user_email, tool) (codex_tool_call_count_total{success=\"true\",user_email=~\"$user\"})",
+            "legendFormat": "{{tool}}", "instant": true }
+        ]
+      },
+      {
+        "id": 31,
+        "title": "🟣 Claude Code — セッション内訳 (fresh / resume / continue)",
+        "type": "barchart",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "resume・continue が多いほど会話を引き継いで連続作業できている（コンテキスト活用度の指標）。",
+        "fieldConfig": {
+          "defaults": { "unit": "short", "color": { "mode": "palette-classic" },
+            "custom": { "stacking": { "mode": "normal" } }
+          },
+          "overrides": [
+            { "matcher": { "id": "byName", "options": "fresh" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] },
+            { "matcher": { "id": "byName", "options": "resume" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+            { "matcher": { "id": "byName", "options": "continue" },
+              "properties": [{ "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }] }
+          ]
+        },
+        "options": { "orientation": "horizontal", "stacking": "normal",
+          "legend": { "displayMode": "list", "placement": "bottom" } },
+        "targets": [
+          { "refId": "A",
+            "expr": "sum by (user_email, start_type) (claude_code_session_count_total{user_email=~\"$user\"})",
+            "legendFormat": "{{start_type}}", "instant": true }
+        ]
+      },
+
+      {
+        "id": 40,
+        "title": "🟣 Claude Code — モデル別トークン",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 6, "x": 0, "y": 28 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value","percent"] } },
+        "targets": [{ "refId": "A",
+          "expr": "sum by (model) (claude_code_token_usage_tokens_total{user_email=~\"$user\"})",
+          "legendFormat": "{{model}}", "instant": true }]
+      },
+      {
+        "id": 41,
+        "title": "🟢 Codex — モデル別トークン",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 6, "x": 6, "y": 28 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value","percent"] } },
+        "targets": [{ "refId": "A",
+          "expr": "sum by (model) (codex_turn_token_usage_tokens_total{user_email=~\"$user\"})",
+          "legendFormat": "{{model}}", "instant": true }]
+      },
+      {
+        "id": 42,
+        "title": "🟣 Claude Code — LOC / commit / PR",
+        "type": "barchart",
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 28 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "orientation": "horizontal",
+          "legend": { "displayMode": "list", "placement": "bottom" } },
+        "targets": [
+          { "refId": "A",
+            "expr": "sum by (user_email) (claude_code_lines_of_code_count_total{type=\"added\",user_email=~\"$user\"})",
+            "legendFormat": "LOC added", "instant": true },
+          { "refId": "B",
+            "expr": "sum by (user_email) (claude_code_commit_count_total{user_email=~\"$user\"}) or sum by (user_email) (claude_code_session_count_total{user_email=~\"$user\"}) * 0",
+            "legendFormat": "commit", "instant": true },
+          { "refId": "C",
+            "expr": "sum by (user_email) (claude_code_pull_request_count_total{user_email=~\"$user\"}) or sum by (user_email) (claude_code_session_count_total{user_email=~\"$user\"}) * 0",
+            "legendFormat": "PR", "instant": true }
+        ]
+      },
+      {
+        "id": 43,
+        "title": "🟢 Codex — ツール失敗数ランキング",
+        "type": "barchart",
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 28 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "description": "失敗が多いユーザーは権限エラーや不正なコマンドを繰り返している可能性。フォローアップの優先度指標として使う。",
+        "fieldConfig": {
+          "defaults": { "unit": "short",
+            "thresholds": { "mode": "absolute", "steps": [
+              { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 10 }
+            ]},
+            "custom": { "displayMode": "color-background" }
+          }
+        },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "hidden" } },
+        "targets": [{ "refId": "A",
+          "expr": "sum by (user_email) (codex_tool_call_count_total{success=\"false\",user_email=~\"$user\"})",
+          "legendFormat": "{{user_email}}", "instant": true }]
+      },
+
+      {
+        "id": 50,
+        "title": "イベントログ — Claude Code (Loki)",
+        "type": "logs",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+        "datasource": { "type": "loki", "uid": "loki" },
+        "options": { "showTime": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true },
+        "targets": [{ "refId": "A", "expr": "{service_name=\"claude-code\"}" }]
+      }
+
+    ]
+  },
+  "overwrite": true
+}
